@@ -3,6 +3,7 @@ package com.example.dfspringbot.service;
 import com.example.dfspringbot.config.BotConfig;
 import com.example.dfspringbot.model.User;
 import com.example.dfspringbot.model.UserRepository;
+import com.vdurmont.emoji.EmojiParser;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -23,8 +24,11 @@ import java.util.List;
 @Slf4j
 public class TelegramBot extends TelegramLongPollingBot {
 
-    private static final String HELP_TEXT = "This bot is made to learn and train Spring skills based on Telegram.\n\n" +
-            "Try all the features of this bot.";
+    private static final String HELP_TEXT = EmojiParser.parseToUnicode(
+            ":information_source: :information_source: :information_source: \n\n" +
+            "This bot is made to learn and train Spring skills based on Telegram.\n\n" +
+            "Try all the features of this bot.\n\n" +
+            ":information_source: :information_source: :information_source:");
     private final BotConfig config;
 
     @Autowired
@@ -95,7 +99,8 @@ public class TelegramBot extends TelegramLongPollingBot {
     }
 
     private void startCommandReceived(long chatId, String name) {
-        String answer = "Hi, " + name + ", welcome to the team!";
+        //String answer = "Hi, " + name + ", welcome to the team!";
+        String answer = EmojiParser.parseToUnicode("Hi, " + name + ", welcome to the team!" + " :blush:");
         log.info("Replied to user " + name);
         sendMessage(chatId, answer);
     }
