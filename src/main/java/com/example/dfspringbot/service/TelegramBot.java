@@ -1,16 +1,21 @@
 package com.example.dfspringbot.service;
 
 import com.example.dfspringbot.config.BotConfig;
+import com.example.dfspringbot.model.User;
+import com.example.dfspringbot.model.UserRepository;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.commands.SetMyCommands;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
+import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.commands.BotCommand;
 import org.telegram.telegrambots.meta.api.objects.commands.scope.BotCommandScopeDefault;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -21,6 +26,9 @@ public class TelegramBot extends TelegramLongPollingBot {
     private static final String HELP_TEXT = "This bot is made to learn and train Spring skills based on Telegram.\n\n" +
             "Try all the features of this bot.";
     private final BotConfig config;
+
+    @Autowired
+    private UserRepository repository;
 
     public TelegramBot(BotConfig config) {
         this.config = config;
@@ -57,6 +65,7 @@ public class TelegramBot extends TelegramLongPollingBot {
 
             switch (messageText) {
                 case "/start":
+                    registeredUser(update.getMessage());
                     startCommandReceived(chartId, update.getMessage().getChat().getFirstName());
                     break;
                 case "/help":
@@ -65,6 +74,23 @@ public class TelegramBot extends TelegramLongPollingBot {
                 default:
                     sendMessage(chartId, "Sorry, the command is not supported.");
             }
+        }
+    }
+
+    private void registeredUser(Message message) {
+        if(repository.findById(message.getChatId()).isEmpty()){
+            var chatId = message.getChatId();
+            var chat = message.getChat();
+
+            User user = new User();
+            user.setChatId(chatId);
+            user.setFirstName(chat.getFirstName());
+            user.setLastName(chat.getLastName());
+            user.setUserName(chat.getUserName());
+            user.setRegisteredAt(new Timestamp(System.currentTimeMillis()));
+
+            repository.save(user);
+            log.info("User saved: " + user);
         }
     }
 
