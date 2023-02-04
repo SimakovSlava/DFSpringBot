@@ -19,6 +19,7 @@ import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 @Component
 @Slf4j
@@ -26,10 +27,12 @@ public class TelegramBot extends TelegramLongPollingBot {
 
     private static final String HELP_TEXT = EmojiParser.parseToUnicode(
             ":information_source: :information_source: :information_source: \n\n" +
-            "This bot is made to learn and train Spring skills based on Telegram.\n\n" +
-            "Try all the features of this bot.\n\n" +
-            ":information_source: :information_source: :information_source:");
+                    "This bot is made to learn and train Spring skills based on Telegram.\n\n" +
+                    "Try all the features of this bot.\n\n" +
+                    ":information_source: :information_source: :information_source:");
     private final BotConfig config;
+
+    private static boolean registered = false;
 
     @Autowired
     private UserRepository repository;
@@ -69,11 +72,20 @@ public class TelegramBot extends TelegramLongPollingBot {
 
             switch (messageText) {
                 case "/start":
-                    registeredUser(update.getMessage());
-                    startCommandReceived(chartId, update.getMessage().getChat().getFirstName());
+                    if (registeredUser(update.getMessage())) {
+                        startCommandReceived(chartId, update.getMessage().getChat().getFirstName());
+                    } else
+                        sendMessage(update.getMessage().getChatId(),
+                                "You are a registered user.");
                     break;
                 case "/help":
                     sendMessage(chartId, HELP_TEXT);
+                    break;
+                case "/mydata":
+                    viewUserData(update.getMessage());
+                    break;
+                case "/deletedata":
+                    deleteMyData(update.getMessage());
                     break;
                 default:
                     sendMessage(chartId, "Sorry, the command is not supported.");
@@ -81,8 +93,41 @@ public class TelegramBot extends TelegramLongPollingBot {
         }
     }
 
-    private void registeredUser(Message message) {
-        if(repository.findById(message.getChatId()).isEmpty()){
+    private void deleteMyData(Message message) {
+        if (registered == true) {
+            sendMessage(message.getChatId(), "All data about you has been deleted. " +
+                    "You can verify this with the /mydata command. " +
+                    "Thank you for your cooperation.");
+            repository.deleteById(message.getChatId());
+            registered = false;
+        } else {
+            sendMessage(message.getChatId(), "There is no data about you.");
+        }
+    }
+
+    private void viewUserData(Message message) {
+        Optional<User> user = repository.findById(message.getChatId());
+        if (user.isPresent()) {
+            String chatId = String.valueOf(user.get().getChatId());
+            String firstName = user.get().getFirstName();
+            String lastName = user.get().getLastName();
+            String registered = String.valueOf(user.get().getRegisteredAt());
+            String userName = user.get().getUserName();
+
+            sendMessage(Long.parseLong(chatId), EmojiParser.parseToUnicode(
+                    "Data about you:\n\n" +
+                            "First name: " + firstName + " :sunglasses:\n" +
+                            "Last name: " + lastName + " :innocent:\n" +
+                            "Id: " + chatId + " :id:\n" +
+                            "Date of registration with this bot: " + registered + " :date:\n" +
+                            "User name: " + userName + " :speaking_head_in_silhouette:"));
+        } else {
+            sendMessage(message.getChatId(), "You are not registered.");
+        }
+    }
+
+    private boolean registeredUser(Message message) {
+        if (repository.findById(message.getChatId()).isEmpty()) {
             var chatId = message.getChatId();
             var chat = message.getChat();
 
@@ -95,11 +140,17 @@ public class TelegramBot extends TelegramLongPollingBot {
 
             repository.save(user);
             log.info("User saved: " + user);
+
+            registered = true;
+
+            return true;
+        } else {
+            registered = true;
+            return false;
         }
     }
 
     private void startCommandReceived(long chatId, String name) {
-        //String answer = "Hi, " + name + ", welcome to the team!";
         String answer = EmojiParser.parseToUnicode("Hi, " + name + ", welcome to the team!" + " :blush:");
         log.info("Replied to user " + name);
         sendMessage(chatId, answer);
